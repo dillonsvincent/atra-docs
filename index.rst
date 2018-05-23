@@ -1,20 +1,19 @@
-.. Atra documentation master file, created by
-   sphinx-quickstart on Wed May 23 00:44:13 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+==================================================
+Atra Blockchain Services (ABS) Documentation
+==================================================
 
-Welcome to Atra's documentation!
-================================
+Welcome to Atra Blackchain Services (ABS) Documentation.
+ 
+Visit our website for accesss to the Atra Console https://atra.io
+
+.. toctree::
+	:maxdepth: 2
+	:caption: Welcome
+
+	gettingStarted
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Services
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   addressDelegateService
