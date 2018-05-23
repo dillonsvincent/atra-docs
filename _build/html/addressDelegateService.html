@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>&lt;no title&gt; &#8212; Atra  documentation</title>
+    <title>(ADS) Address Delegate Service &#8212; Atra  documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script type="text/javascript" src="_static/documentation_options.js"></script>
@@ -35,7 +35,463 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <p>addressDelegateService.rst</p>
+  <div class="section" id="ads-address-delegate-service">
+<h1>(ADS) Address Delegate Service<a class="headerlink" href="#ads-address-delegate-service" title="Permalink to this headline">¶</a></h1>
+<p>ADS stores a list of Routes that are used to supply the correct and current address for a DApp’s smart contract. ADS can be accessed a few different ways, within the ethereum network via solidity, from a browser via javascript, and from the Atra Console via supported browser.</p>
+<div class="section" id="intro">
+<h2>Intro<a class="headerlink" href="#intro" title="Permalink to this headline">¶</a></h2>
+<p>ADS is solving a problem for developers that might not be apparent when first starting to develop smart contracts. The problem reveals itself when you’re ready to update a contract or its many dependencies. If you haven’t figured this out by now, you cannot update a contracts code once it’s live. What you can do is modify storage inside the contract that was predetermined by your code at the time of deployment. If you were to make code changes and deploy a new (updated) version of the contract, you’d have a different address than the previous contract, this would leave all existing dependencies stuck on the old address until they were able to update their code.</p>
+<p>To solve this problem DApps need to maintain a mechanism that keeps track of what the real path is to a products contract. This is a lot of work and starts to become its own project rather than the idea you originally started to build. Don’t fear, that’s why ADS is here.</p>
+<div class="section" id="how-does-ads-work">
+<h3>How does ADS work?<a class="headerlink" href="#how-does-ads-work" title="Permalink to this headline">¶</a></h3>
+<p>ADS is a service and smart contract that developers can leverage when there is a need to interact with a contract, whether that is contract they own or a dependency of their contract. Instead of blindly applying what you think is the correct and current address to an interface, make a call to ADS with the name of the Route that maintains the product smart contract address you need, ADS will return the correct and current address.</p>
+<p>Using ADS as a pattern to access a contract will allow the owner of the ADS Route to update the Route’s address and all clients using ADS to access the product will seamlessly be updated to the new address without ever having to change any code on their end. Owners will be able to hot swap contracts without breaking links to any dependencies.</p>
+</div>
+</div>
+<div class="section" id="walkthrough">
+<h2>Walkthrough<a class="headerlink" href="#walkthrough" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">We will not be covering smart contract basics in this walkthrough. Head over to the <a class="reference external" href="http://solidity.readthedocs.io/">Solidity Documentation</a> if you need an intro to smart contracts.</p>
+</div>
+<p>In this Walkthrough we will learn how to structure our smart contracts to create a small network for ADS to control the routing.</p>
+<p>Our example network will consist of a storage contract, two logic contracts, and the ADS contract. ADS will act as a middle man between the storage contract and the logic contracts, serving the storage contract the correct and current logic contract address before every request.</p>
+<p>The two logic contracts will be using the same solidity interface, allowing the storage contract to apply the same interface to either of the logic contracts without code changes. The logic contracts are essentially interchangeable within the storage contract. The storage contract will be using ADS to supply the address for it’s logic. If we switch the logic Route in the ADS to serve a different logic address, the storage contract will get that update without any code changes.</p>
+<div class="section" id="setting-up">
+<h3>1. Setting Up<a class="headerlink" href="#setting-up" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Metamask is a prerequisite to this Walkthrough. Need help setting up a metamask account? Follow our quick <a class="reference external" href="https://atra.readthedocs.io/en/latest/getting_started.html">Getting Started with Atra</a> guide and come back when you’re done.</p>
+</div>
+<p>Let’s set our ethereum network and load all of the resources in new tabs we will need complete the walkthrough.</p>
+<ol class="arabic simple">
+<li>Set Metamask to use the Rinkeby Test Net. Reference our Getting Started with Atra for help.</li>
+<li>Open Remix Ethereum IDE in a new tab (<a class="reference external" href="https://remix.ethereum.org/">https://remix.ethereum.org/</a>)</li>
+<li>Open the Atra ADS Console in a new tab (<a class="reference external" href="https://atra.io/ads/beta">https://atra.io/ads/beta</a>)</li>
+</ol>
+<p>All contracts used in the walkthrough can be found on the <a class="reference external" href="https://github.com/dillonsvincent/AtraSOL/tree/master/Examples/ADS">Atra Github</a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">All contracts used in the walkthrough are purely for example purposes only.</p>
+</div>
+<p>Before we proceed to the next section make sure you’ve completed list above and the Getting Started with Atra guide.</p>
+</div>
+<div class="section" id="logic-contracts">
+<h3>2. Logic Contracts<a class="headerlink" href="#logic-contracts" title="Permalink to this headline">¶</a></h3>
+<p>Let’s take a look at what we refer to as a logic contract. Below we’ve listed the two contracts we’re going to use in our network. First thing you notice is that both contracts are very similiar. They are pretty identical except for the name of the contract and how they calculate inputs num1 and num2 in the Calc function. The calc function is essentially the logic of the contract. Logic can range from a simple addition to complex algorithms that connect to many other contracts. The point is that it doesn’t matter so much of what the functions are doing but more that they share a common interface or set of functions, and in this case that’s the Calc function.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">pragma</span> <span class="nx">solidity</span><span class="o">^</span><span class="mf">0.4.23</span><span class="p">;</span>
+
+<span class="kr">interface</span> <span class="nx">Logic</span> <span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">Calc</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">num1</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">num2</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">contract</span> <span class="nx">ExampleLogic_Add</span> <span class="nx">is</span> <span class="nx">Logic</span><span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">Calc</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">num1</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">num2</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">num1</span> <span class="o">+</span> <span class="nx">num2</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The above contract ExampleLogic_Add uses the addition operator to combine the two inputs.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">pragma</span> <span class="nx">solidity</span><span class="o">^</span><span class="mf">0.4.23</span><span class="p">;</span>
+
+<span class="kr">interface</span> <span class="nx">Logic</span> <span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">Calc</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">num1</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">num2</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">contract</span> <span class="nx">ExampleLogic_Mult</span> <span class="nx">is</span> <span class="nx">Logic</span><span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">Calc</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">num1</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">num2</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">num1</span> <span class="o">*</span> <span class="nx">num2</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The above contract ExampleLogic_Mult uses the multiplication operator to combine the two inputs.</p>
+</div>
+<div class="section" id="deploying-a-contract-with-remix">
+<h3>3. Deploying a Contract with Remix<a class="headerlink" href="#deploying-a-contract-with-remix" title="Permalink to this headline">¶</a></h3>
+<p>We are going to open our IDE Remix and paste each of the above logic contracts code into a new file. Name the files ‘ExampleLogic_Add.sol’ and ‘ExampleLogic_Mult.sol’. Once the files are created and compiled by Remix, use the tabs in the upper right, select the run tab and set the ‘Environment’ dropdown to ‘Injected Web3’. This is telling remix you want to use your metamask wallet and the network that it’s currently set to, in this instance it’s going to be Rinkeby Test Net.</p>
+<p>Just down the page a little you can click the ‘Deploy’ button, this will initiate a transaction with metamask that need to be approved by you, it’s for the cost of deploying your contract to the test net. Click ‘Submit’ and the transaction will be sent containing the creation of a contract. You must wait until the transaction is approved, once it’s finished after a minute or two at the most, you will see the contracts endpointd returned with it’s name and address as the title, below the deploy button. From here you can interact with your contract directly by clicking on the buttons that represent a function or public variable in the deployed live contract.</p>
+<p>Repeat this processes for both logic contracts we’ve listed above. This step is complete when have two contracts deployed to the Rinkeby Test Net in two different files. Clicking the Calc button with two numbers as input has the expected result.</p>
+<p>Now that you have you’re contracts deployed and working correctly, what we need to do now is grab the address of the first logic contract ‘ExampleLogic_Add’ from remix. The address is located at the top the contracts properties list of buttons and inputs to the right of the name, there is a copy address button. Once you have the address we can head into the next section where we are going to interact with ADS using the Atra Console.</p>
+</div>
+<div class="section" id="creating-a-route-with-ads-console">
+<h3>4. Creating a Route with ADS Console<a class="headerlink" href="#creating-a-route-with-ads-console" title="Permalink to this headline">¶</a></h3>
+<p>First thing we need to do is open the ADS Console (<a class="reference external" href="https://atra.io/ads/beta">https://atra.io/ads/beta</a>). The console is a tool used for easily interacting with the ADS smart contract. The console makes sure your Metamask account is in the right state before allowing you to interact. You should see a banner that says ‘Connection Successful’, if you see a different message follow the on screen directions to resolve it.</p>
+<p>Lets jump right in and click Create Route. A dialog will popup with a create route form, take a second and hover over the tooltips. Our route name can be anything upto 100 characters and unique within ADS. Go ahead and name your route, an example route name for your logic contract may be ‘[your name].ExampleLogic’, if that’s not available just play around with different names until you’ve found an available one. The next field is the contracts address, here is where you’ll insert the copied address form the first logic contract from the previous section. If you no longer have the address just repeat the ‘Deploying a Contract with Remix’ section again.</p>
+<p>The next field, ABI is not going to be used in this example so we can just put ‘pending’ in that input.</p>
+<p>Click ‘Create Route’, you’ll notice a Metamask popup dialog will appear asking to confirm the transaction, click submit. If you do not see the metamask popup check the extension itself by clicking on it in your browser toolbar.</p>
+<p>Once the transaction has been submitted you’ll see a new record added to the ‘Transaction History’ in the console. The status will start as pending and soon change to complete once the transaction has been mined.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">You do not need to refresh the page while waiting for the transaction to complete. Once you see a completed status, use the ‘Refresh’ button to the left of the transaction history.</p>
+</div>
+<p>When our transaction has been completed, click the ‘Refresh’ button. You will now see your newly created route in the table and it’s details below the table.</p>
+<p>What we just did was create a route record within the ADS contract using the ADS Console and our Metamask Wallet for the transaction fee. The Address of our Metmask Wallet is now the owner of the route. Owners have the ability to Schedule Updates and Transfer Route Ownership.</p>
+<p>To recap, we now have two logic contracts deployed and live on the Rinkeby Test Net. We have created a new route with the ADS Console and set the Route Address to the address to the logic contract ‘ExampleLogic_Add’.</p>
+</div>
+<div class="section" id="storage-contract">
+<h3>5. Storage Contract<a class="headerlink" href="#storage-contract" title="Permalink to this headline">¶</a></h3>
+<p>Now that we have a way to calculate two numbers in our logic contract, lets connect that logic to what we’ve been referring to as a storage contract. Below we the code for our storage contract</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">pragma</span> <span class="nx">solidity</span><span class="o">^</span><span class="mf">0.4.23</span><span class="p">;</span>
+
+<span class="kr">interface</span> <span class="nx">Logic</span> <span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">Calc</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">num1</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">num2</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">interface</span> <span class="nx">ADS</span> <span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">GetAddress</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">routeId</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">name</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">address</span> <span class="nx">currentAddress</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">contract</span> <span class="nx">ExampleStorage</span> <span class="p">{</span>
+
+    <span class="nx">address</span> <span class="kr">public</span> <span class="nx">AdsAddress</span><span class="p">;</span>
+    <span class="nx">uint</span> <span class="kr">public</span> <span class="nx">num1</span> <span class="o">=</span> <span class="mi">500</span><span class="p">;</span>
+    <span class="nx">uint</span> <span class="kr">public</span> <span class="nx">num2</span> <span class="o">=</span> <span class="mi">300</span><span class="p">;</span>
+
+    <span class="nx">constructor</span><span class="p">()</span> <span class="kr">public</span> <span class="p">{</span>
+        <span class="nx">AdsAddress</span> <span class="o">=</span> <span class="mh">0x472510ff257d04ac8ced332bfc5719ab30871202</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">Calculate</span><span class="p">()</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">ADS</span> <span class="nx">ads</span> <span class="o">=</span> <span class="nx">ADS</span><span class="p">(</span><span class="nx">AdsAddress</span><span class="p">);</span>
+        <span class="nx">Logic</span> <span class="nx">logic</span> <span class="o">=</span> <span class="nx">Logic</span><span class="p">(</span><span class="nx">ads</span><span class="p">.</span><span class="nx">GetAddress</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Replace with Route Name&quot;</span><span class="p">));</span>
+        <span class="k">return</span> <span class="nx">logic</span><span class="p">.</span><span class="nx">Calc</span><span class="p">(</span><span class="nx">num1</span><span class="p">,</span> <span class="nx">num2</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This contract has a little more going on than the logic contracts, so lets break down what’s actually happening here.</p>
+<p>Let’s look at the first interface</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kr">interface</span> <span class="nx">Logic</span> <span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">Calc</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">num1</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">num2</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This should look familiar because we are using the same interface in our logic contracts.</p>
+<p>The next interface is the ADS interface.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kr">interface</span> <span class="nx">ADS</span> <span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">GetAddress</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">routeId</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">name</span><span class="p">)</span> <span class="nx">external</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">address</span> <span class="nx">currentAddress</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This gives our code the ability to call functions in the ADS smart contract when applying the address to the interface. If you view the actual ADS smart contract interface you’ll notice it contains a few more functions than this one. The reason for the lack of function is because we are only needing to use the one function ‘GetCurrentAddress’.</p>
+<p>Now that we’ve looked over the Storage contract dependency interfaces lets see how they are used within the core of the Storage contract.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">contract</span> <span class="nx">ExampleStorage</span> <span class="p">{</span>
+
+    <span class="nx">address</span> <span class="kr">public</span> <span class="nx">AdsAddress</span><span class="p">;</span>
+    <span class="nx">uint</span> <span class="kr">public</span> <span class="nx">num1</span> <span class="o">=</span> <span class="mi">500</span><span class="p">;</span>
+    <span class="nx">uint</span> <span class="kr">public</span> <span class="nx">num2</span> <span class="o">=</span> <span class="mi">300</span><span class="p">;</span>
+
+    <span class="nx">constructor</span><span class="p">()</span> <span class="kr">public</span> <span class="p">{</span>
+        <span class="nx">AdsAddress</span> <span class="o">=</span> <span class="mh">0x472510ff257d04ac8ced332bfc5719ab30871202</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">Calculate</span><span class="p">()</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">ADS</span> <span class="nx">ads</span> <span class="o">=</span> <span class="nx">ADS</span><span class="p">(</span><span class="nx">AdsAddress</span><span class="p">);</span>
+        <span class="nx">Logic</span> <span class="nx">logic</span> <span class="o">=</span> <span class="nx">Logic</span><span class="p">(</span><span class="nx">ads</span><span class="p">.</span><span class="nx">GetAddress</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Replace with Route Name&quot;</span><span class="p">));</span>
+        <span class="k">return</span> <span class="nx">logic</span><span class="p">.</span><span class="nx">Calc</span><span class="p">(</span><span class="nx">num1</span><span class="p">,</span> <span class="nx">num2</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The first thing we notice are variables being declared, this is essentially the storage of the contract. The storage is basically whatever information you need to store in the smart contract for the foreseeable future. Next we have the first function on the contract, this is the constructor, it’s ran only once, at the creation on the contract when it’s being deployed. In our constructor we are setting the value of AdsAddress. This is the smart contract address to the ADS contract Atra has deployed on the Rinkeby Test Net.</p>
+<p>Finally the function that brings the whole network together, Calculate.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">Calculate</span><span class="p">()</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">result</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">ADS</span> <span class="nx">ads</span> <span class="o">=</span> <span class="nx">ADS</span><span class="p">(</span><span class="nx">AdsAddress</span><span class="p">);</span>
+    <span class="nx">Logic</span> <span class="nx">logic</span> <span class="o">=</span> <span class="nx">Logic</span><span class="p">(</span><span class="nx">ads</span><span class="p">.</span><span class="nx">GetAddress</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Replace with Route Name&quot;</span><span class="p">));</span>
+    <span class="k">return</span> <span class="nx">logic</span><span class="p">.</span><span class="nx">Calc</span><span class="p">(</span><span class="nx">num1</span><span class="p">,</span> <span class="nx">num2</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In the Calculate function we set it to public, allowing anyone in the world to call the function. We set the function to ‘view’ telling ethereum we are only going to look at the storage and not change it. We then say we are returning a number named result, which will be the result of our logic contract after it has crunched the two numbers and returned a result.</p>
+<p>Inside the Calculate function we see the interfaces we defined above the contract now being used. When you apply an address to an interface you can interact with the smart contract at that address only if it can fulfill the interface. In our case the first interface we use is the ADS interface. We create an instance of the ADS contract to use. We then do the same thing with the Logic interface, expect this is where we use the ADS instance. We use the instance of the ADS contract to get the address of the route we created earlier, which will point to the ExampleLogic_Add contract. When it’s all put together we get an instance of a logic contract based on the address the route returns. Next we use the instance of the Logic contract to call the function Calc, and supply the storage variables (num1, num2) as input for the Calc function. Then we return the result of the Calc function as the result of the Calculate function.</p>
+<p>Now lets copy the full storage contract from above. Open remix paste the code into a new file named ‘ExampleStorage.sol’. Before you click the deploy button, lets make one change to the code. Where it says ‘Route Name’ in the contract code, replace that with the name of the route you created earlier in the ADS Console. Above the ‘Deploy’ button there is a dropdown with a list of interfaces and contracts that your file has. By default the ADS interface will be selected, we need to change that to the name of the contract, ‘ExampleStorage’. Click ‘Deploy’, wait for the transaction to complete in remix, once it’s done remix displays the contract name and address with it’s public functions in the right sidebar under the deploy button. Lets click the button ‘Calculate’, this is going to call the function Calculate in the live contract, which is going to create an instance of the ADS contract and also an instance of the Logic contract based on what our Route returns for the address. Next it’s going to use the logic by calling Calc on that Logic instance, and returning the result. The expected result when using the address returned by the Route that points to the live ‘ExampleLogic_Add’ contract, is going to be 800. Leave the remix window open so you can come back to the contract and click the Calculate button after you’ve updated the route in the next section.</p>
+<p>We now have a fully functioning network of contracts ready to be updated with new logic.</p>
+</div>
+<div class="section" id="scheduling-an-update">
+<h3>6. Scheduling an Update<a class="headerlink" href="#scheduling-an-update" title="Permalink to this headline">¶</a></h3>
+<p>There are a couple reason you may want to update logic that a storage contract uses. Let’s pretend you’ve created an ethereum trading card game and after you’ve deployed the storage contract you notice there’s a bug in the logic for calculating the correct price a customer needs to pay for a card. You can correct the bug in the logic contract, deploy it, then schedule an update for the route to use the new contracts address. Seamlessly fixing the issue without any interruption to the DApp. This is just one of many scenarios where ADS really shines. Let’s look at how we schedule an update.</p>
+<p>Scheduling an Update to your Route is simple, open up the ADS Console just like before when we created a route. If you have created multiple routes that’s okay, just select the logic route we created earlier for this example, if you’re still not sure it’s the route name we used in our storage contract above. After selecting a route from the routes table you enable the actions dropdown above the table. The actions dropdown applies only to the selected route. In the Actions dropdown select ‘Schedule Update’. A popup dialog should appear with a title of ‘Schedule Update’, the route name should again be the name of the route we used in our storage contract. The next field is the ‘Release Date’, this field has two options, you can either choose to release the update right now, meaning you’ll replace the current ExampleLogic_Add address without a wait time, or you can select a date in the future to plan the update. For this example we are going to leave the default of releasing the update now.</p>
+<p>The next field in the form is Address, this is the address to the new logic contract, in our case we are going to use the second logic contract we created earlier in the walkthrough, ExampleLogic_Mult. If you can’t find the address to the contract just go repeat the Deploying a Contract with Remix section and only deploy the ExampleLogic_Mult contract. Once you have the contract created, grab the address once again and paste it into the address field in the popup dialog and set the Abi field to ‘pending’, and click ‘Save’.</p>
+<p>After you approve the transaction via metamkas popup, or by clicking on the extension itself if it doesn’t popup, wait for the transaction history to show complete for the update. Click refresh and you’ll see that the address, version, and release date for the route have changed to the new Logic contract.</p>
+<p>Lets head back over to remix and click the Calculate button for your storage contract. You should see the result 150,000.</p>
+</div>
+<div class="section" id="conclusion">
+<h3>7. Conclusion<a class="headerlink" href="#conclusion" title="Permalink to this headline">¶</a></h3>
+<p>We have now successfully created a network of contracts using ADS to control routing, enabling us to be able to update contracts while they are live.</p>
+</div>
+</div>
+<div class="section" id="solidity-contract-reference">
+<h2>Solidity Contract Reference<a class="headerlink" href="#solidity-contract-reference" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="abi">
+<h3>ABI<a class="headerlink" href="#abi" title="Permalink to this headline">¶</a></h3>
+<p>To create a JavaScript instance of the ADS contract with web3.js you’ll need the offical ABI for ADS. The offical ABI is hosted on our github <a class="reference external" href="https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json">https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json</a></p>
+</div>
+<div class="section" id="interface">
+<h3>Interface<a class="headerlink" href="#interface" title="Permalink to this headline">¶</a></h3>
+<p>To create a solidity instance of the ADS contract you’ll need to use the official ADS interface for solidity that’s listed below.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kr">interface</span> <span class="nx">IADS</span> <span class="p">{</span>
+    <span class="kd">function</span> <span class="nx">Create</span><span class="p">(</span><span class="nx">string</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">currentAddress</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">currentAbiLocation</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">payable</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">newRouteId</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">ScheduleUpdate</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">_id</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">_name</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">_release</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">_addr</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">_abiUrl</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">bool</span> <span class="nx">success</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">Get</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">_id</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">string</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">addr</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">abiUrl</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">released</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">version</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">update</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">updateAddr</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">updateAbiUrl</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">active</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">owner</span><span class="p">,</span> <span class="nx">uint</span> <span class="nx">created</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">GetRouteIdsForOwner</span><span class="p">(</span><span class="nx">address</span> <span class="nx">_owner</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span><span class="p">[]</span> <span class="nx">routeIds</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">GetAddress</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">_id</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">address</span> <span class="nx">addr</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">GetAddressAndAbi</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">_id</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">address</span> <span class="nx">addr</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">abiUrl</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">RoutesLength</span><span class="p">()</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">length</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">NameTaken</span><span class="p">(</span><span class="nx">string</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">bool</span> <span class="nx">taken</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">TransferRouteOwnership</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">_id</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">_name</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">_owner</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">bool</span> <span class="nx">success</span><span class="p">);</span>
+
+    <span class="kd">function</span> <span class="nx">AcceptRouteOwnership</span><span class="p">(</span><span class="nx">uint</span> <span class="nx">_id</span><span class="p">,</span> <span class="nx">string</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">bool</span> <span class="nx">success</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="create">
+<h3>Create<a class="headerlink" href="#create" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">Create</span><span class="p">(</span><span class="nx">_name</span><span class="p">,</span> <span class="nx">_addr</span><span class="p">,</span> <span class="nx">_abiUrl</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">payable</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">id</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Create(_name,</span> <span class="pre">_addr,</span> <span class="pre">_abiUrl)</span></code> function is used to create and append a new route object to ADS contract routes list. After creating the route it is immediately available and will return the initiated parameters as the active route info until the owner calls the <code class="docutils literal notranslate"><span class="pre">ScheduleUpdate</span></code> function.</p>
+<div class="section" id="parameters">
+<h4>Parameters<a class="headerlink" href="#parameters" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: The immutable name of the route that’s being created. A name must be unique within the ADS contract and has a max length of 100 characters. Use the <code class="docutils literal notranslate"><span class="pre">NameTaken</span></code> function to ensure the name is available before submitting the transaction.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_addr</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The starting contract address for the route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_abiUrl</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: The starting contract ABI url for the route. Max 256 characters.</li>
+</ol>
+</div>
+<div class="section" id="returns">
+<h4>Returns<a class="headerlink" href="#returns" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">id</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The index of the Route object within the Routes list.</li>
+</ol>
+</div>
+<div class="section" id="event">
+<h4>Event<a class="headerlink" href="#event" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">event</span> <span class="nx">RouteCreated</span><span class="p">(</span><span class="nx">string</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">owner</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="scheduleupdate">
+<h3>ScheduleUpdate<a class="headerlink" href="#scheduleupdate" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">ScheduleUpdate</span><span class="p">(</span><span class="nx">_id</span><span class="p">,</span> <span class="nx">_name</span><span class="p">,</span> <span class="nx">_release</span><span class="p">,</span> <span class="nx">_addr</span><span class="p">,</span> <span class="nx">_abiUrl</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">success</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">ScheduleUpdate(_id,</span> <span class="pre">_name,</span> <span class="pre">_release,</span> <span class="pre">_addr,</span> <span class="pre">_abiUrl)</span></code> function is used when the owner of the route wants to schedule an update for their route. Scheduling an update will overwrite an update that has a release date still in the future. When the release date is in the past, the ADS contract will serve the update position as active.</p>
+<div class="section" id="id1">
+<h4>Parameters<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_id</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The index of the Route object within the Routes list. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> length is 0 the function uses <code class="docutils literal notranslate"><span class="pre">_id</span></code> to look up the Route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: A unique string within the ADS contract used to lookup a Route. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> is given the <code class="docutils literal notranslate"><span class="pre">_id</span></code> is ignored and the Route is looked up by <code class="docutils literal notranslate"><span class="pre">_name</span></code>.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_release</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: An epoch timestamp in seconds of when the update will be active.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_addr</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The contract address for the update position of the route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_abiUrl</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: The url to the contract ABI for the update position of the route.</li>
+</ol>
+</div>
+<div class="section" id="id2">
+<h4>Returns<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">success</span></code> - <code class="docutils literal notranslate"><span class="pre">bool</span></code>: Returns true is the function executed successfully.</li>
+</ol>
+</div>
+<div class="section" id="id3">
+<h4>Event<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">event</span> <span class="nx">UpdateScheduled</span><span class="p">(</span><span class="nx">string</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">owner</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="get">
+<h3>Get<a class="headerlink" href="#get" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This function is not yet supported by contract to contract calls. To access this function use web3.js. To access a Route’s address in solidity use the <code class="docutils literal notranslate"><span class="pre">GetAddress()</span></code> function.</p>
+</div>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">Get</span><span class="p">(</span><span class="nx">_id</span><span class="p">,</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span>
+    <span class="nx">name</span><span class="p">,</span>
+    <span class="nx">addr</span><span class="p">,</span>
+    <span class="nx">abiUrl</span><span class="p">,</span>
+    <span class="nx">released</span><span class="p">,</span>
+    <span class="nx">version</span><span class="p">,</span>
+    <span class="nx">update</span><span class="p">,</span>
+    <span class="nx">updateAddr</span><span class="p">,</span>
+    <span class="nx">updateAbiUrl</span><span class="p">,</span>
+    <span class="nx">active</span><span class="p">,</span>
+    <span class="nx">owner</span><span class="p">,</span>
+    <span class="nx">created</span>
+<span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Get(_id,</span> <span class="pre">_name)</span></code> is used when a client needs to access a Route’s full list of properties. This function is heavy relied on by the Atra Console to display the state of an owners routes.</p>
+<div class="section" id="id4">
+<h4>Parameters<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_id</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The index of the Route object within the Routes list. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> length is 0 the function uses <code class="docutils literal notranslate"><span class="pre">_id</span></code> to look up the Route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: A unique string within the ADS contract used to lookup a Route. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> is given the <code class="docutils literal notranslate"><span class="pre">_id</span></code> is ignored and the Route is looked up by <code class="docutils literal notranslate"><span class="pre">_name</span></code>.</li>
+</ol>
+</div>
+<div class="section" id="id5">
+<h4>Returns<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: A unique name set at creation by the owner.</li>
+<li><code class="docutils literal notranslate"><span class="pre">addr</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The contract address for the current position of the route. Use the <code class="docutils literal notranslate"><span class="pre">active</span></code> property to determine what position to use.</li>
+<li><code class="docutils literal notranslate"><span class="pre">abiUrl</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: The url to the contract ABI for the current position of the route. Use the <code class="docutils literal notranslate"><span class="pre">active</span></code> property to determine what position to use.</li>
+<li><code class="docutils literal notranslate"><span class="pre">released</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: An epoch timestamp in seconds of when the active route address and ABI last changed. This is dynamic depending what address info is being served as active.</li>
+<li><code class="docutils literal notranslate"><span class="pre">version</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: A number that auto increments everytime a new route address and ABI is served as active.</li>
+<li><code class="docutils literal notranslate"><span class="pre">update</span></code> - <code class="docutils literal notranslate"><span class="pre">unit</span></code>: An epoch timestamp in seconds for when updateAddr and UpdateAbiUrl will be served as active.</li>
+<li><code class="docutils literal notranslate"><span class="pre">updateAddr</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The contract address for the update position of the route. Use the <code class="docutils literal notranslate"><span class="pre">active</span></code> property to determine what position to use.</li>
+<li><code class="docutils literal notranslate"><span class="pre">updateAbiUrl</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: The url to the contract ABI for the update position of the route. Use the <code class="docutils literal notranslate"><span class="pre">active</span></code> property to determine what position to use.</li>
+<li><code class="docutils literal notranslate"><span class="pre">active</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: Returns either 0 (current) or 1 (update) representing which position to use as the correct and current route address and ABI. 0 = (addr, abiUrl) 1 = (updateAddr, updateAbiUrl)</li>
+<li><code class="docutils literal notranslate"><span class="pre">owner</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The wallet address of the owner of the route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">created</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: An epoch timestamp in seconds of when the route was created.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="getrouteidsforowner">
+<h3>GetRouteIdsForOwner<a class="headerlink" href="#getrouteidsforowner" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">GetRouteIdsForOwner</span><span class="p">(</span><span class="nx">_owner</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">ids</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">GetRouteIdsForOwner(_owner)</span></code> is used to get a list of route ids that are owned by a wallet address. This function can be used to in conjuction with any ADS function that accepts <code class="docutils literal notranslate"><span class="pre">_id</span></code> as an input parameter. The Atra Console uses this function to build a list of routes for the user.</p>
+<div class="section" id="id6">
+<h4>Parameters<a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_owner</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The wallet address of the route owner.</li>
+</ol>
+</div>
+<div class="section" id="id7">
+<h4>Returns<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">ids</span></code> - <code class="docutils literal notranslate"><span class="pre">uint[]</span></code>: Array of route ids that are owned by <code class="docutils literal notranslate"><span class="pre">_owner</span></code>.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="getaddress">
+<h3>GetAddress<a class="headerlink" href="#getaddress" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">GetAddress</span><span class="p">(</span><span class="nx">_id</span><span class="p">,</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">addr</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">GetAddress(_id,</span> <span class="pre">_name)</span></code> is used by clients thay only need the active address for a route. This is a dynamic call that checks the update release date and returns either the current position or update position address.</p>
+<div class="section" id="id8">
+<h4>Parameters<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_id</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The index of the Route object within the Routes list. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> length is 0 the function uses <code class="docutils literal notranslate"><span class="pre">_id</span></code> to look up the Route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: A unique string within the ADS contract used to lookup a Route. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> is given the <code class="docutils literal notranslate"><span class="pre">_id</span></code> is ignored and the Route is looked up by <code class="docutils literal notranslate"><span class="pre">_name</span></code>.</li>
+</ol>
+</div>
+<div class="section" id="id9">
+<h4>Returns<a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">addr</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The active address for a the route.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="getaddressandabi">
+<h3>GetAddressAndAbi<a class="headerlink" href="#getaddressandabi" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">GetAddressAndAbi</span><span class="p">(</span><span class="nx">_id</span><span class="p">,</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">addr</span><span class="p">,</span> <span class="nx">abiUrl</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">GetAddressAndAbi(_id,</span> <span class="pre">_name)</span></code> function is used by clients that only need the active address and ABI of a route. If a client isn’t displaying route state, use this call over the <code class="docutils literal notranslate"><span class="pre">Get</span></code> function.</p>
+<div class="section" id="id10">
+<h4>Parameters<a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_id</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The index of the Route object within the Routes list. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> length is 0 the function uses <code class="docutils literal notranslate"><span class="pre">_id</span></code> to look up the Route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: A unique string within the ADS contract used to lookup a Route. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> is given the <code class="docutils literal notranslate"><span class="pre">_id</span></code> is ignored and the Route is looked up by <code class="docutils literal notranslate"><span class="pre">_name</span></code>.</li>
+</ol>
+</div>
+<div class="section" id="id11">
+<h4>Returns<a class="headerlink" href="#id11" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">addr</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The active address for a the route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">abiUrl</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: The active ABI url for a the route.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="routeslength">
+<h3>RoutesLength<a class="headerlink" href="#routeslength" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">RoutesLength</span><span class="p">()</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">length</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">RoutesLength()</span></code> function is used when a client needs to know the total size of the routes list. Clients can use this number to display the last X amount of routes created.</p>
+<div class="section" id="id12">
+<h4>Returns<a class="headerlink" href="#id12" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">length</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The total number of routes in the routes list.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="nametaken">
+<h3>NameTaken<a class="headerlink" href="#nametaken" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">NameTaken</span><span class="p">(</span><span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">view</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">taken</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">NameTaken(_name)</span></code> function is used to determine wether or not a name has already been used within the ADS contract. The Atra Console uses this function in the create route form before allowing a user to submit the creation of a route.</p>
+<div class="section" id="id13">
+<h4>Parameters<a class="headerlink" href="#id13" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: The route name.</li>
+</ol>
+</div>
+<div class="section" id="id14">
+<h4>Returns<a class="headerlink" href="#id14" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">taken</span></code> - <code class="docutils literal notranslate"><span class="pre">bool</span></code>: Returns true if the route name is taken. Returns false if the route name is available.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="transferrouteownership">
+<h3>TransferRouteOwnership<a class="headerlink" href="#transferrouteownership" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">TransferRouteOwnership</span><span class="p">(</span><span class="nx">_id</span><span class="p">,</span> <span class="nx">_name</span><span class="p">,</span> <span class="nx">_owner</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">success</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">TransferRouteOwnership(_id,</span> <span class="pre">_name,</span> <span class="pre">_owner)</span></code> function is used by route owners that want to transfer the ownership of their route to another wallet address. Transfering a route is a two part process and must use the <code class="docutils literal notranslate"><span class="pre">AcceptRouteOwnership</span></code> to finalize the transfer.</p>
+<div class="section" id="id15">
+<h4>Parameters<a class="headerlink" href="#id15" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_id</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The index of the Route object within the Routes list. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> length is 0 the function uses <code class="docutils literal notranslate"><span class="pre">_id</span></code> to look up the Route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: A unique string within the ADS contract used to lookup a Route. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> is given the <code class="docutils literal notranslate"><span class="pre">_id</span></code> is ignored and the Route is looked up by <code class="docutils literal notranslate"><span class="pre">_name</span></code>.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_owner</span></code> - <code class="docutils literal notranslate"><span class="pre">address</span></code>: The target wallet address of the new owner for the route. <code class="docutils literal notranslate"><span class="pre">_owner</span></code> must call <code class="docutils literal notranslate"><span class="pre">AcceptRouteOwnership</span></code> to finalize the transfer and take ownership of the route.</li>
+</ol>
+</div>
+<div class="section" id="id16">
+<h4>Returns<a class="headerlink" href="#id16" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">success</span></code> - <code class="docutils literal notranslate"><span class="pre">bool</span></code>: Returns true if the function was successfull.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="acceptrouteownership">
+<h3>AcceptRouteOwnership<a class="headerlink" href="#acceptrouteownership" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">AcceptRouteOwnership</span><span class="p">(</span><span class="nx">_id</span><span class="p">,</span> <span class="nx">_name</span><span class="p">)</span> <span class="kr">public</span> <span class="nx">returns</span><span class="p">(</span><span class="nx">success</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">AcceptRouteOwnership(_id,</span> <span class="pre">_name)</span></code> function is used to finalize a transfer of a route to a new address. Caller must be the tragert wallet address of the <code class="docutils literal notranslate"><span class="pre">TransferRouteOwnership</span></code> function.</p>
+<div class="section" id="id17">
+<h4>Parameters<a class="headerlink" href="#id17" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">_id</span></code> - <code class="docutils literal notranslate"><span class="pre">uint</span></code>: The index of the Route object within the Routes list. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> length is 0 the function uses <code class="docutils literal notranslate"><span class="pre">_id</span></code> to look up the Route.</li>
+<li><code class="docutils literal notranslate"><span class="pre">_name</span></code> - <code class="docutils literal notranslate"><span class="pre">string</span></code>: A unique string within the ADS contract used to lookup a Route. When <code class="docutils literal notranslate"><span class="pre">_name</span></code> is given the <code class="docutils literal notranslate"><span class="pre">_id</span></code> is ignored and the Route is looked up by <code class="docutils literal notranslate"><span class="pre">_name</span></code>.</li>
+</ol>
+</div>
+<div class="section" id="id18">
+<h4>Returns<a class="headerlink" href="#id18" title="Permalink to this headline">¶</a></h4>
+<ol class="arabic simple">
+<li><code class="docutils literal notranslate"><span class="pre">success</span></code> - <code class="docutils literal notranslate"><span class="pre">bool</span></code>: Returns true if the function was successfull.</li>
+</ol>
+</div>
+</div>
+</div>
+</div>
 
 
           </div>
@@ -43,6 +499,83 @@
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">(ADS) Address Delegate Service</a><ul>
+<li><a class="reference internal" href="#intro">Intro</a><ul>
+<li><a class="reference internal" href="#how-does-ads-work">How does ADS work?</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#walkthrough">Walkthrough</a><ul>
+<li><a class="reference internal" href="#setting-up">1. Setting Up</a></li>
+<li><a class="reference internal" href="#logic-contracts">2. Logic Contracts</a></li>
+<li><a class="reference internal" href="#deploying-a-contract-with-remix">3. Deploying a Contract with Remix</a></li>
+<li><a class="reference internal" href="#creating-a-route-with-ads-console">4. Creating a Route with ADS Console</a></li>
+<li><a class="reference internal" href="#storage-contract">5. Storage Contract</a></li>
+<li><a class="reference internal" href="#scheduling-an-update">6. Scheduling an Update</a></li>
+<li><a class="reference internal" href="#conclusion">7. Conclusion</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#solidity-contract-reference">Solidity Contract Reference</a><ul>
+<li><a class="reference internal" href="#abi">ABI</a></li>
+<li><a class="reference internal" href="#interface">Interface</a></li>
+<li><a class="reference internal" href="#create">Create</a><ul>
+<li><a class="reference internal" href="#parameters">Parameters</a></li>
+<li><a class="reference internal" href="#returns">Returns</a></li>
+<li><a class="reference internal" href="#event">Event</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#scheduleupdate">ScheduleUpdate</a><ul>
+<li><a class="reference internal" href="#id1">Parameters</a></li>
+<li><a class="reference internal" href="#id2">Returns</a></li>
+<li><a class="reference internal" href="#id3">Event</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#get">Get</a><ul>
+<li><a class="reference internal" href="#id4">Parameters</a></li>
+<li><a class="reference internal" href="#id5">Returns</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#getrouteidsforowner">GetRouteIdsForOwner</a><ul>
+<li><a class="reference internal" href="#id6">Parameters</a></li>
+<li><a class="reference internal" href="#id7">Returns</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#getaddress">GetAddress</a><ul>
+<li><a class="reference internal" href="#id8">Parameters</a></li>
+<li><a class="reference internal" href="#id9">Returns</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#getaddressandabi">GetAddressAndAbi</a><ul>
+<li><a class="reference internal" href="#id10">Parameters</a></li>
+<li><a class="reference internal" href="#id11">Returns</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#routeslength">RoutesLength</a><ul>
+<li><a class="reference internal" href="#id12">Returns</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nametaken">NameTaken</a><ul>
+<li><a class="reference internal" href="#id13">Parameters</a></li>
+<li><a class="reference internal" href="#id14">Returns</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transferrouteownership">TransferRouteOwnership</a><ul>
+<li><a class="reference internal" href="#id15">Parameters</a></li>
+<li><a class="reference internal" href="#id16">Returns</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#acceptrouteownership">AcceptRouteOwnership</a><ul>
+<li><a class="reference internal" href="#id17">Parameters</a></li>
+<li><a class="reference internal" href="#id18">Returns</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
   <p class="topless"><a href="gettingStarted.html"
                         title="previous chapter">Getting Started with Atra</a></p>
