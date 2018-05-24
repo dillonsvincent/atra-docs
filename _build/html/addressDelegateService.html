@@ -67,7 +67,7 @@
 <ol class="arabic simple">
 <li>Set Metamask to use the Rinkeby Test Net. Reference our Getting Started with Atra for help.</li>
 <li>Open Remix Ethereum IDE in a new tab (<a class="reference external" href="https://remix.ethereum.org/">https://remix.ethereum.org/</a>)</li>
-<li>Open the Atra ADS Console in a new tab (<a class="reference external" href="https://atra.io/ads/beta">https://atra.io/ads/beta</a>)</li>
+<li>Open the Atra ADS Console in a new tab (<a class="reference external" href="https://atra.io/console/beta">https://atra.io/console/beta</a>)</li>
 </ol>
 <p>All contracts used in the walkthrough can be found on the <a class="reference external" href="https://github.com/dillonsvincent/AtraSOL/tree/master/Examples/ADS">Atra Github</a>.</p>
 <div class="admonition note">
@@ -117,7 +117,7 @@
 </div>
 <div class="section" id="creating-a-route-with-ads-console">
 <h3>4. Creating a Route with ADS Console<a class="headerlink" href="#creating-a-route-with-ads-console" title="Permalink to this headline">¶</a></h3>
-<p>First thing we need to do is open the ADS Console (<a class="reference external" href="https://atra.io/ads/beta">https://atra.io/ads/beta</a>). The console is a tool used for easily interacting with the ADS smart contract. The console makes sure your Metamask account is in the right state before allowing you to interact. You should see a banner that says ‘Connection Successful’, if you see a different message follow the on screen directions to resolve it.</p>
+<p>First thing we need to do is open the ADS Console (<a class="reference external" href="https://atra.io/console/beta">https://atra.io/console/beta</a>). The console is a tool used for easily interacting with the ADS smart contract. The console makes sure your Metamask account is in the right state before allowing you to interact. You should see a banner that says ‘Connection Successful’, if you see a different message follow the on screen directions to resolve it.</p>
 <p>Lets jump right in and click Create Route. A dialog will popup with a create route form, take a second and hover over the tooltips. Our route name can be anything upto 100 characters and unique within ADS. Go ahead and name your route, an example route name for your logic contract may be ‘[your name].ExampleLogic’, if that’s not available just play around with different names until you’ve found an available one. The next field is the contracts address, here is where you’ll insert the copied address form the first logic contract from the previous section. If you no longer have the address just repeat the ‘Deploying a Contract with Remix’ section again.</p>
 <p>The next field, ABI is not going to be used in this example so we can just put ‘pending’ in that input.</p>
 <p>Click ‘Create Route’, you’ll notice a Metamask popup dialog will appear asking to confirm the transaction, click submit. If you do not see the metamask popup check the extension itself by clicking on it in your browser toolbar.</p>
@@ -226,7 +226,8 @@
 <h2>Solidity Contract Reference<a class="headerlink" href="#solidity-contract-reference" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="abi">
 <h3>ABI<a class="headerlink" href="#abi" title="Permalink to this headline">¶</a></h3>
-<p>To create a JavaScript instance of the ADS contract with web3.js you’ll need the offical ABI for ADS. The offical ABI is hosted on our github <a class="reference external" href="https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json">https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json</a></p>
+<p>To create a JavaScript instance of the ADS contract with web3.js you’ll need the offical ABI for ADS.
+The offical ABI is hosted on <a class="reference external" href="https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json">our github</a>.</p>
 </div>
 <div class="section" id="interface">
 <h3>Interface<a class="headerlink" href="#interface" title="Permalink to this headline">¶</a></h3>

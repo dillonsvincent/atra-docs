@@ -250,7 +250,10 @@ Solidity Contract Reference
 
 ABI
 ====
-To create a JavaScript instance of the ADS contract with web3.js you'll need the offical ABI for ADS. The offical ABI is hosted on our github https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json
+To create a JavaScript instance of the ADS contract with web3.js you'll need the offical ABI for ADS.
+The offical ABI is hosted on `our github`_.
+
+.. _`our github` : https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json
 
 Interface
 ==========

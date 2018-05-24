@@ -24,7 +24,7 @@ Walkthrough
 -------------
 .. note:: We will not be covering smart contract basics in this walkthrough. Head over to the `Solidity Documentation`_ if you need an intro to smart contracts.
 
-.. _`Solidity Documentation` : http://solidity.readthedocs.io/ 
+.. _`Solidity Documentation` : http://solidity.readthedocs.io/
 
 In this Walkthrough we will learn how to structure our smart contracts to create a small network for ADS to control the routing.
 
@@ -35,7 +35,7 @@ The two logic contracts will be using the same solidity interface, allowing the 
 
 1. Setting Up
 ===============
-.. note:: Metamask is a prerequisite to this Walkthrough. Need help setting up a metamask account? Follow our quick `Getting Started with Atra`_ guide and come back when you're done. 
+.. note:: Metamask is a prerequisite to this Walkthrough. Need help setting up a metamask account? Follow our quick `Getting Started with Atra`_ guide and come back when you're done.
 
 
 .. _`Getting Started with Atra`: https://atra.readthedocs.io/en/latest/getting_started.html
@@ -44,7 +44,7 @@ Let's set our ethereum network and load all of the resources in new tabs we will
 
 1. Set Metamask to use the Rinkeby Test Net. Reference our Getting Started with Atra for help.
 2. Open Remix Ethereum IDE in a new tab (https://remix.ethereum.org/)
-3. Open the Atra ADS Console in a new tab (https://atra.io/ads/beta)
+3. Open the Atra ADS Console in a new tab (https://atra.io/console/beta)
 
 All contracts used in the walkthrough can be found on the `Atra Github`_.
 
@@ -57,7 +57,7 @@ Before we proceed to the next section make sure you've completed list above and 
 
 2. Logic Contracts
 ===================
-Let's take a look at what we refer to as a logic contract. Below we've listed the two contracts we're going to use in our network. First thing you notice is that both contracts are very similiar. They are pretty identical except for the name of the contract and how they calculate inputs num1 and num2 in the Calc function. The calc function is essentially the logic of the contract. Logic can range from a simple addition to complex algorithms that connect to many other contracts. The point is that it doesn't matter so much of what the functions are doing but more that they share a common interface or set of functions, and in this case that's the Calc function. 
+Let's take a look at what we refer to as a logic contract. Below we've listed the two contracts we're going to use in our network. First thing you notice is that both contracts are very similiar. They are pretty identical except for the name of the contract and how they calculate inputs num1 and num2 in the Calc function. The calc function is essentially the logic of the contract. Logic can range from a simple addition to complex algorithms that connect to many other contracts. The point is that it doesn't matter so much of what the functions are doing but more that they share a common interface or set of functions, and in this case that's the Calc function.
 
 .. code-block:: javascript
 
@@ -94,7 +94,7 @@ The above contract ExampleLogic_Mult uses the multiplication operator to combine
 
 3. Deploying a Contract with Remix
 ===================================
-We are going to open our IDE Remix and paste each of the above logic contracts code into a new file. Name the files 'ExampleLogic_Add.sol' and 'ExampleLogic_Mult.sol'. Once the files are created and compiled by Remix, use the tabs in the upper right, select the run tab and set the 'Environment' dropdown to 'Injected Web3'. This is telling remix you want to use your metamask wallet and the network that it's currently set to, in this instance it's going to be Rinkeby Test Net. 
+We are going to open our IDE Remix and paste each of the above logic contracts code into a new file. Name the files 'ExampleLogic_Add.sol' and 'ExampleLogic_Mult.sol'. Once the files are created and compiled by Remix, use the tabs in the upper right, select the run tab and set the 'Environment' dropdown to 'Injected Web3'. This is telling remix you want to use your metamask wallet and the network that it's currently set to, in this instance it's going to be Rinkeby Test Net.
 
 Just down the page a little you can click the 'Deploy' button, this will initiate a transaction with metamask that need to be approved by you, it's for the cost of deploying your contract to the test net. Click 'Submit' and the transaction will be sent containing the creation of a contract. You must wait until the transaction is approved, once it's finished after a minute or two at the most, you will see the contracts endpointd returned with it's name and address as the title, below the deploy button. From here you can interact with your contract directly by clicking on the buttons that represent a function or public variable in the deployed live contract.
 
@@ -105,7 +105,7 @@ Now that you have you're contracts deployed and working correctly, what we need 
 
 4. Creating a Route with ADS Console
 =====================================
-First thing we need to do is open the ADS Console (https://atra.io/ads/beta). The console is a tool used for easily interacting with the ADS smart contract. The console makes sure your Metamask account is in the right state before allowing you to interact. You should see a banner that says 'Connection Successful', if you see a different message follow the on screen directions to resolve it.
+First thing we need to do is open the ADS Console (https://atra.io/console/beta). The console is a tool used for easily interacting with the ADS smart contract. The console makes sure your Metamask account is in the right state before allowing you to interact. You should see a banner that says 'Connection Successful', if you see a different message follow the on screen directions to resolve it.
 
 Lets jump right in and click Create Route. A dialog will popup with a create route form, take a second and hover over the tooltips. Our route name can be anything upto 100 characters and unique within ADS. Go ahead and name your route, an example route name for your logic contract may be '[your name].ExampleLogic', if that's not available just play around with different names until you've found an available one. The next field is the contracts address, here is where you'll insert the copied address form the first logic contract from the previous section. If you no longer have the address just repeat the 'Deploying a Contract with Remix' section again.
 
@@ -170,7 +170,7 @@ Let's look at the first interface
 
 This should look familiar because we are using the same interface in our logic contracts.
 
-The next interface is the ADS interface. 
+The next interface is the ADS interface.
 
 .. code-block:: javascript
 
@@ -216,7 +216,7 @@ Finally the function that brings the whole network together, Calculate.
 
 In the Calculate function we set it to public, allowing anyone in the world to call the function. We set the function to 'view' telling ethereum we are only going to look at the storage and not change it. We then say we are returning a number named result, which will be the result of our logic contract after it has crunched the two numbers and returned a result.
 
-Inside the Calculate function we see the interfaces we defined above the contract now being used. When you apply an address to an interface you can interact with the smart contract at that address only if it can fulfill the interface. In our case the first interface we use is the ADS interface. We create an instance of the ADS contract to use. We then do the same thing with the Logic interface, expect this is where we use the ADS instance. We use the instance of the ADS contract to get the address of the route we created earlier, which will point to the ExampleLogic_Add contract. When it's all put together we get an instance of a logic contract based on the address the route returns. Next we use the instance of the Logic contract to call the function Calc, and supply the storage variables (num1, num2) as input for the Calc function. Then we return the result of the Calc function as the result of the Calculate function. 
+Inside the Calculate function we see the interfaces we defined above the contract now being used. When you apply an address to an interface you can interact with the smart contract at that address only if it can fulfill the interface. In our case the first interface we use is the ADS interface. We create an instance of the ADS contract to use. We then do the same thing with the Logic interface, expect this is where we use the ADS instance. We use the instance of the ADS contract to get the address of the route we created earlier, which will point to the ExampleLogic_Add contract. When it's all put together we get an instance of a logic contract based on the address the route returns. Next we use the instance of the Logic contract to call the function Calc, and supply the storage variables (num1, num2) as input for the Calc function. Then we return the result of the Calc function as the result of the Calculate function.
 
 Now lets copy the full storage contract from above. Open remix paste the code into a new file named 'ExampleStorage.sol'. Before you click the deploy button, lets make one change to the code. Where it says 'Route Name' in the contract code, replace that with the name of the route you created earlier in the ADS Console. Above the 'Deploy' button there is a dropdown with a list of interfaces and contracts that your file has. By default the ADS interface will be selected, we need to change that to the name of the contract, 'ExampleStorage'. Click 'Deploy', wait for the transaction to complete in remix, once it's done remix displays the contract name and address with it's public functions in the right sidebar under the deploy button. Lets click the button 'Calculate', this is going to call the function Calculate in the live contract, which is going to create an instance of the ADS contract and also an instance of the Logic contract based on what our Route returns for the address. Next it's going to use the logic by calling Calc on that Logic instance, and returning the result. The expected result when using the address returned by the Route that points to the live 'ExampleLogic_Add' contract, is going to be 800. Leave the remix window open so you can come back to the contract and click the Calculate button after you've updated the route in the next section.
 
@@ -250,7 +250,10 @@ Solidity Contract Reference
 
 ABI
 ====
-To create a JavaScript instance of the ADS contract with web3.js you'll need the offical ABI for ADS. The offical ABI is hosted on our github https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json
+To create a JavaScript instance of the ADS contract with web3.js you'll need the offical ABI for ADS.
+The offical ABI is hosted on `our github`_.
+
+.. _`our github` : https://github.com/dillonsvincent/AtraSOL/blob/master/ADS/abi.ads.v1.json
 
 Interface
 ==========
@@ -268,15 +271,15 @@ To create a solidity instance of the ADS contract you'll need to use the officia
 	    function GetRouteIdsForOwner(address _owner) public view returns(uint[] routeIds);
 
 	    function GetAddress(uint _id, string _name) public view returns(address addr);
-	    
+
 	    function GetAddressAndAbi(uint _id, string _name) public view returns(address addr, string abiUrl);
 
 	    function RoutesLength() public view returns(uint length);
-	    
+
 	    function NameTaken(string _name) public view returns(bool taken);
 
 	    function TransferRouteOwnership(uint _id, string _name, address _owner) public returns(bool success);
-	    
+
 	    function AcceptRouteOwnership(uint _id, string _name) public returns(bool success);
 	}
 
@@ -297,16 +300,16 @@ Parameters
 
 Returns
 ^^^^^^^^^
-1. ``id`` - ``uint``: The index of the Route object within the Routes list. 
+1. ``id`` - ``uint``: The index of the Route object within the Routes list.
 
 Event
 ^^^^^^^
 .. code-block:: javascript
-	
+
 	event RouteCreated(string name, address owner);
 
 
-    
+
 ScheduleUpdate
 ===============
 .. code-block:: javascript
@@ -331,10 +334,10 @@ Returns
 Event
 ^^^^^^^
 .. code-block:: javascript
-	
+
 	event UpdateScheduled(string name, address owner);
 
-    
+
 Get
 ====
 .. note:: This function is not yet supported by contract to contract calls. To access this function use web3.js. To access a Route's address in solidity use the ``GetAddress()`` function.
@@ -342,16 +345,16 @@ Get
 .. code-block:: javascript
 
 	Get(_id, _name) public view returns(
-	    name, 
-	    addr, 
-	    abiUrl, 
-	    released, 
-	    version, 
-	    update,  
-	    updateAddr, 
-	    updateAbiUrl, 
-	    active, 
-	    owner, 
+	    name,
+	    addr,
+	    abiUrl,
+	    released,
+	    version,
+	    update,
+	    updateAddr,
+	    updateAbiUrl,
+	    active,
+	    owner,
 	    created
 	);
 
@@ -359,7 +362,7 @@ Get
 
 Parameters
 ^^^^^^^^^^^^
-1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route. 
+1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route.
 2. ``_name`` - ``string``: A unique string within the ADS contract used to lookup a Route. When ``_name`` is given the ``_id`` is ignored and the Route is looked up by ``_name``.
 
 Returns
@@ -387,7 +390,7 @@ Returns
 11. ``created`` - ``uint``: An epoch timestamp in seconds of when the route was created.
 
 
-    
+
 GetRouteIdsForOwner
 ====================
 .. code-block:: javascript
@@ -404,7 +407,7 @@ Parameters
 Returns
 ^^^^^^^^^
 1. ``ids`` - ``uint[]``: Array of route ids that are owned by ``_owner``.
-    
+
 GetAddress
 ===========
 .. code-block:: javascript
@@ -416,7 +419,7 @@ GetAddress
 
 Parameters
 ^^^^^^^^^^^^
-1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route. 
+1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route.
 2. ``_name`` - ``string``: A unique string within the ADS contract used to lookup a Route. When ``_name`` is given the ``_id`` is ignored and the Route is looked up by ``_name``.
 
 
@@ -434,14 +437,14 @@ GetAddressAndAbi
 
 Parameters
 ^^^^^^^^^^^^
-1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route. 
+1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route.
 2. ``_name`` - ``string``: A unique string within the ADS contract used to lookup a Route. When ``_name`` is given the ``_id`` is ignored and the Route is looked up by ``_name``.
 
 
 Returns
 ^^^^^^^^^
-1. ``addr`` - ``address``: The active address for a the route. 
-2. ``abiUrl`` - ``string``: The active ABI url for a the route. 
+1. ``addr`` - ``address``: The active address for a the route.
+2. ``abiUrl`` - ``string``: The active ABI url for a the route.
 
 RoutesLength
 =============
@@ -483,7 +486,7 @@ TransferRouteOwnership
 
 Parameters
 ^^^^^^^^^^^^
-1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route. 
+1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route.
 2. ``_name`` - ``string``: A unique string within the ADS contract used to lookup a Route. When ``_name`` is given the ``_id`` is ignored and the Route is looked up by ``_name``.
 3. ``_owner`` - ``address``: The target wallet address of the new owner for the route. ``_owner`` must call ``AcceptRouteOwnership`` to finalize the transfer and take ownership of the route.
 
@@ -502,18 +505,10 @@ AcceptRouteOwnership
 
 Parameters
 ^^^^^^^^^^^^
-1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route. 
+1. ``_id`` - ``uint``: The index of the Route object within the Routes list. When ``_name`` length is 0 the function uses ``_id`` to look up the Route.
 2. ``_name`` - ``string``: A unique string within the ADS contract used to lookup a Route. When ``_name`` is given the ``_id`` is ignored and the Route is looked up by ``_name``.
 
 
 Returns
 ^^^^^^^^^
 1. ``success`` - ``bool``: Returns true if the function was successfull.
-
-
-
-
-
-
-
-
