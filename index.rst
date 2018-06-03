@@ -4,7 +4,7 @@ Atra Blockchain Services (ABS) Documentation
 
 Welcome to Atra Blackchain Services (ABS) Documentation.
 
-Visit our website for accesss to the Atra Console https://atra.io
+Visit our website for more infomation on our services https://atra.io
 
 .. toctree::
 	:maxdepth: 2

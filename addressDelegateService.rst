@@ -4,6 +4,7 @@
 
 ADS stores a list of Routes that are used to supply the correct and current address for a DApp's smart contract. ADS can be accessed a few different ways, within the ethereum network via solidity, from a browser via javascript, and from the Atra Console via supported browser.
 
+.. note:: ADS is currently in a pre-beta stage, please visit our site to sign up for early access. https://atra.io/ads
 
 -------
 Intro
@@ -44,7 +45,7 @@ Let's set our ethereum network and load all of the resources in new tabs we will
 
 1. Set Metamask to use the Rinkeby Test Net. Reference our Getting Started with Atra for help.
 2. Open Remix Ethereum IDE in a new tab (https://remix.ethereum.org/)
-3. Open the Atra ADS Console in a new tab (https://atra.io/console/beta)
+3. Open the Atra ADS Console in a new tab (https://atra.io/console?service=ads)
 
 All contracts used in the walkthrough can be found on the `Atra Github`_.
 
@@ -105,7 +106,7 @@ Now that you have you're contracts deployed and working correctly, what we need 
 
 4. Creating a Route with ADS Console
 =====================================
-First thing we need to do is open the ADS Console (https://atra.io/console/beta). The console is a tool used for easily interacting with the ADS smart contract. The console makes sure your Metamask account is in the right state before allowing you to interact. You should see a banner that says 'Connection Successful', if you see a different message follow the on screen directions to resolve it.
+First thing we need to do is open the ADS Console (https://atra.io/console?service=ads). The console is a tool used for easily interacting with the ADS smart contract. The console makes sure your Metamask account is in the right state before allowing you to interact. You should see a banner that says 'Connection Successful', if you see a different message follow the on screen directions to resolve it.
 
 Lets jump right in and click Create Route. A dialog will popup with a create route form, take a second and hover over the tooltips. Our route name can be anything upto 100 characters and unique within ADS. Go ahead and name your route, an example route name for your logic contract may be '[your name].ExampleLogic', if that's not available just play around with different names until you've found an available one. The next field is the contracts address, here is where you'll insert the copied address form the first logic contract from the previous section. If you no longer have the address just repeat the 'Deploying a Contract with Remix' section again.
 
